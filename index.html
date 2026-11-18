@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio Scenario Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#1c2430; --muted:#5d6775; --line:#e2e6ec;
+  --accent:#2f6fd6; --accent-soft:#e7f0fd; --good:#1f8a5b; --warn:#c2410c; --base:#9aa5b4;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161d; --card:#1a212b; --ink:#e7ebf0; --muted:#9aa4b2; --line:#2a3340;
+    --accent:#6ea2f5; --accent-soft:#1e2c42; --good:#4cc38a; --warn:#f08a4b; --base:#6b7686;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161d; --card:#1a212b; --ink:#e7ebf0; --muted:#9aa4b2; --line:#2a3340;
+  --accent:#6ea2f5; --accent-soft:#1e2c42; --good:#4cc38a; --warn:#f08a4b; --base:#6b7686;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 40px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:middle}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.kpi .label{color:var(--muted);font-size:13px}
+.kpi .value{font-size:26px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .delta{font-size:13px;margin-top:2px;font-variant-numeric:tabular-nums}
+.pos{color:var(--warn)} .neg{color:var(--good)}
+.main{grid-template-columns:300px minmax(0,1fr);margin-top:16px}
+.controls h2,.card h2{font-size:15px;margin:0 0 12px}
+.ctrl{margin-bottom:16px}
+.ctrl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+.ctrl label b{color:var(--ink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.charts{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.chartbox{position:relative;height:280px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.cut td{color:var(--muted);text-decoration:line-through}
+tr.cut td:first-child, tr.cut td.keep{text-decoration:none}
+select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:2px 4px}
+.pill{font-size:12px;padding:1px 7px;border-radius:999px;border:1px solid var(--line)}
+.p1{border-color:var(--good);color:var(--good)} .p2{border-color:var(--accent);color:var(--accent)} .p3{border-color:var(--base);color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.insight{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:12px}
+footer{color:var(--muted);font-size:12px;margin-top:20px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.main,.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Portfolio Scenario Planner <span class="tag">Sample data</span></h1>
+      <p class="sub">Test budget, cost, and timing assumptions across a technology project portfolio and see the impact on the capital plan.</p>
+    </div>
+    <div class="btns">
+      <button id="reset">Reset to baseline</button>
+      <button id="export">Export scenario (CSV)</button>
+    </div>
+  </header>
+
+  <section class="grid kpis">
+    <div class="card kpi"><div class="label">Baseline capital plan</div><div class="value" id="kBase">–</div><div class="delta" style="color:var(--muted)">FY27–FY28, all projects</div></div>
+    <div class="card kpi"><div class="label">Scenario spend in plan window</div><div class="value" id="kScen">–</div><div class="delta" id="kScenD">–</div></div>
+    <div class="card kpi"><div class="label">Deferred beyond FY28</div><div class="value" id="kDef">–</div><div class="delta" style="color:var(--muted)">from delays</div></div>
+    <div class="card kpi"><div class="label">Projects funded</div><div class="value" id="kFund">–</div><div class="delta" id="kFundD">–</div></div>
+  </section>
+
+  <section class="grid main">
+    <aside class="card controls">
+      <h2>Scenario assumptions</h2>
+      <div class="ctrl">
+        <label>Portfolio budget cap <b id="vCap"></b></label>
+        <input type="range" id="cap" min="40" max="130" step="1">
+        <div class="hint">Projects are funded in priority order; any project that would exceed the cap is held back.</div>
+      </div>
+      <div class="ctrl">
+        <label>Cost change <b id="vCost"></b></label>
+        <input type="range" id="cost" min="-15" max="25" step="1">
+        <div class="hint">e.g., vendor rates or inflation.</div>
+      </div>
+      <div class="ctrl">
+        <label>Contingency reserve <b id="vCont"></b></label>
+        <input type="range" id="cont" min="0" max="20" step="1">
+      </div>
+      <div class="ctrl">
+        <label>Delay all Priority 3 projects <b id="vDelay"></b></label>
+        <input type="range" id="delay" min="0" max="4" step="1">
+        <div class="hint">You can also delay individual projects in the table.</div>
+      </div>
+      <div class="insight" id="insight"></div>
+    </aside>
+
+    <div class="grid" style="gap:16px;min-width:0">
+      <div class="grid charts">
+        <div class="card"><h2>Quarterly capital spend: baseline vs. scenario ($M)</h2><div class="chartbox"><canvas id="cQ"></canvas></div></div>
+        <div class="card"><h2>Scenario spend by category ($M)</h2><div class="chartbox"><canvas id="cC"></canvas></div></div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:16px">
+        <h2>Projects</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Include</th><th>Project</th><th>Category</th><th>Priority</th><th class="num">Baseline ($M)</th><th class="num">Scenario ($M)</th><th>Start</th><th>Delay</th><th>Status</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+  <footer>Built by Hamza Hasnain with AI-assisted development (Claude). All projects and figures are fictional sample data.</footer>
+</div>
+
+<script>
+const QUARTERS = ["FY27 Q1","FY27 Q2","FY27 Q3","FY27 Q4","FY28 Q1","FY28 Q2","FY28 Q3","FY28 Q4"];
+const BASE_PROJECTS = [
+  {name:"Mobile App Checkout Redesign", cat:"Guest Digital", pri:1, budget:14.0, start:0, dur:4},
+  {name:"Ride Reservation Platform Upgrade", cat:"Guest Digital", pri:1, budget:18.5, start:1, dur:5},
+  {name:"Point-of-Sale Hardware Refresh", cat:"Infrastructure", pri:1, budget:12.0, start:0, dur:3},
+  {name:"Data Lakehouse Expansion", cat:"Data & AI", pri:2, budget:9.5, start:1, dur:4},
+  {name:"AI Guest Service Assistant", cat:"Data & AI", pri:2, budget:7.0, start:2, dur:4},
+  {name:"Network Resiliency Program", cat:"Infrastructure", pri:2, budget:11.0, start:2, dur:6},
+  {name:"Resort Kiosk Modernization", cat:"Guest Digital", pri:3, budget:8.0, start:3, dur:4},
+  {name:"Crew Scheduling Tool Replacement", cat:"Operations", pri:3, budget:6.5, start:2, dur:4},
+  {name:"Merchandise Inventory Analytics", cat:"Operations", pri:3, budget:5.0, start:4, dur:3}
+];
+const DEFAULTS = {cap:100, cost:0, cont:0, delay:0};
+let state = {...DEFAULTS, projects: BASE_PROJECTS.map(p => ({...p, include:true, delay:0}))};
+
+const $ = id => document.getElementById(id);
+const fmt = v => "$" + v.toFixed(1) + "M";
+
+function spread(budget, start, dur){
+  const out = new Array(QUARTERS.length).fill(0); let deferred = 0;
+  const per = budget / dur;
+  for(let i=0;i<dur;i++){ const q = start + i; if(q < QUARTERS.length) out[q] += per; else deferred += per; }
+  return {out, deferred};
+}
+
+function compute(){
+  const mult = (1 + state.cost/100) * (1 + state.cont/100);
+  const order = state.projects.map((p,i)=>({...p, i})).sort((a,b)=> a.pri-b.pri || a.i-b.i);
+  let running = 0; const funded = new Set();
+  for(const p of order){
+    if(!p.include) continue;
+    const cost = p.budget * mult;
+    if(running + cost <= state.cap + 1e-9){ running += cost; funded.add(p.i); }
+  }
+  const baseQ = new Array(QUARTERS.length).fill(0), scenQ = new Array(QUARTERS.length).fill(0);
+  const byCat = {}; let deferred = 0, baseTotal = 0;
+  const rows = state.projects.map((p,i)=>{
+    const b = spread(p.budget, p.start, p.dur); b.out.forEach((v,q)=>baseQ[q]+=v); baseTotal += p.budget;
+    const totalDelay = p.delay + (p.pri===3 ? state.delay : 0);
+    const isFunded = funded.has(i);
+    const cost = p.budget * mult;
+    let status = !p.include ? "Excluded" : isFunded ? (totalDelay ? "Funded, delayed" : "Funded") : "Over cap";
+    if(isFunded){
+      const s = spread(cost, p.start + totalDelay, p.dur);
+      s.out.forEach((v,q)=>scenQ[q]+=v); deferred += s.deferred;
+      const inWin = s.out.reduce((a,c)=>a+c,0);
+      byCat[p.cat] = (byCat[p.cat]||0) + inWin;
+    }
+    return {...p, i, cost, isFunded, totalDelay, status};
+  });
+  const scenTotal = scenQ.reduce((a,c)=>a+c,0);
+  return {baseQ, scenQ, byCat, deferred, baseTotal, scenTotal, rows, fundedCount: funded.size, fundedCost: running};
+}
+
+let chartQ, chartC;
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function render(){
+  $("vCap").textContent = fmt(state.cap);
+  $("vCost").textContent = (state.cost>0?"+":"") + state.cost + "%";
+  $("vCont").textContent = state.cont + "%";
+  $("vDelay").textContent = state.delay + (state.delay===1?" quarter":" quarters");
+  const r = compute();
+  $("kBase").textContent = fmt(r.baseTotal);
+  $("kScen").textContent = fmt(r.scenTotal);
+  const d = r.scenTotal - r.baseTotal;
+  $("kScenD").textContent = (d>=0?"+":"") + fmt(d).replace("$-","-$") + " vs. baseline";
+  $("kScenD").className = "delta " + (d>0.05 ? "pos" : "neg");
+  $("kDef").textContent = fmt(r.deferred);
+  $("kFund").textContent = r.fundedCount + " of " + state.projects.length;
+  $("kFundD").textContent = fmt(r.fundedCost) + " committed of " + fmt(state.cap) + " cap";
+  $("kFundD").style.color = "var(--muted)";
+
+  const tb = $("rows"); tb.innerHTML = "";
+  r.rows.forEach(p=>{
+    const tr = document.createElement("tr");
+    if(!p.isFunded) tr.className = "cut";
+    tr.innerHTML = `<td class="keep"><input type="checkbox" ${p.include?"checked":""} data-i="${p.i}" class="inc"></td>
+      <td>${p.name}</td><td>${p.cat}</td><td class="keep"><span class="pill p${p.pri}">P${p.pri}</span></td>
+      <td class="num">${p.budget.toFixed(1)}</td><td class="num">${p.isFunded?p.cost.toFixed(1):"–"}</td>
+      <td>${QUARTERS[Math.min(p.start + p.totalDelay, QUARTERS.length-1)]}${p.start+p.totalDelay>=QUARTERS.length?"+":""}</td>
+      <td class="keep"><select data-i="${p.i}" class="dly">${[0,1,2,3,4].map(n=>`<option value="${n}" ${n===state.projects[p.i].delay?"selected":""}>${n}Q</option>`).join("")}</select></td>
+      <td class="keep">${p.status}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll(".inc").forEach(el=>el.onchange=e=>{state.projects[+e.target.dataset.i].include=e.target.checked; render();});
+  tb.querySelectorAll(".dly").forEach(el=>el.onchange=e=>{state.projects[+e.target.dataset.i].delay=+e.target.value; render();});
+
+  const overCap = r.rows.filter(p=>p.include && !p.isFunded);
+  let msg = `Scenario funds <b>${r.fundedCount}</b> projects for <b>${fmt(r.fundedCost)}</b>.`;
+  if(overCap.length) msg += ` <b>${overCap.length}</b> project(s) fall below the cap line: ${overCap.map(p=>p.name).join(", ")}.`;
+  if(r.deferred>0.05) msg += ` Delays push <b>${fmt(r.deferred)}</b> of spend past FY28.`;
+  const peak = r.scenQ.indexOf(Math.max(...r.scenQ));
+  msg += ` Peak quarter: <b>${QUARTERS[peak]}</b> (${fmt(r.scenQ[peak])}).`;
+  $("insight").innerHTML = msg;
+
+  if(!window.Chart) return;
+  const ink = css("--ink"), muted = css("--muted"), line = css("--line"), accent = css("--accent"), base = css("--base");
+  Chart.defaults.color = muted; Chart.defaults.borderColor = line;
+  const qData = {labels: QUARTERS, datasets:[
+    {label:"Baseline", data:r.baseQ.map(v=>+v.toFixed(2)), backgroundColor:base, borderRadius:4},
+    {label:"Scenario", data:r.scenQ.map(v=>+v.toFixed(2)), backgroundColor:accent, borderRadius:4}
+  ]};
+  if(chartQ){ chartQ.data = qData; chartQ.update(); }
+  else chartQ = new Chart($("cQ"), {type:"bar", data:qData, options:{maintainAspectRatio:false, plugins:{legend:{position:"bottom"}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fmt(c.raw)}`}}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>"$"+v+"M"}}}}});
+  const cats = Object.keys(r.byCat);
+  const cData = {labels: cats, datasets:[{label:"Scenario", data:cats.map(c=>+r.byCat[c].toFixed(2)), backgroundColor:accent, borderRadius:4}]};
+  if(chartC){ chartC.data = cData; chartC.update(); }
+  else chartC = new Chart($("cC"), {type:"bar", data:cData, options:{indexAxis:"y", maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>fmt(c.raw)}}}, scales:{x:{beginAtZero:true, ticks:{callback:v=>"$"+v+"M"}}}}});
+}
+
+function bind(){
+  ["cap","cost","cont","delay"].forEach(k=>{ const el=$(k); el.value=state[k]; el.oninput=e=>{state[k]=+e.target.value; render();}; });
+  $("reset").onclick=()=>{ state = {...DEFAULTS, projects: BASE_PROJECTS.map(p=>({...p, include:true, delay:0}))}; bind(); render(); };
+  $("export").onclick=()=>{
+    const r = compute();
+    const head = ["Project","Category","Priority","Baseline $M","Scenario $M","Start","Delay (Q)","Status"];
+    const lines = r.rows.map(p=>[p.name,p.cat,"P"+p.pri,p.budget.toFixed(1),p.isFunded?p.cost.toFixed(1):"",QUARTERS[Math.min(p.start+p.totalDelay,7)],p.totalDelay,p.status].map(v=>`"${v}"`).join(","));
+    const blob = new Blob([[head.join(","),...lines].join("\n")],{type:"text/csv"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "portfolio_scenario.csv"; a.click();
+  };
+}
+bind(); render();
+</script>
+</body>
+</html>
